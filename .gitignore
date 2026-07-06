@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE
+.idea/
+
+# playwright mcp debug artifacts
+.playwright-mcp/
+
+# claude local settings
+.claude/settings.local.json
