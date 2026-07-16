@@ -61,11 +61,13 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableConfig | undefined;
 
-    // 401이 아니거나, 이미 재시도했거나, 리프레시 엔드포인트 자체가 실패한 경우 그대로 reject
+    // 401이 아니거나, 이미 재시도했거나, 리프레시/로그인 엔드포인트 자체가 실패한 경우 그대로 reject
+    // (로그인 401은 비밀번호 오류 등 자격 증명 실패이지 세션 만료가 아니므로 갱신 대상이 아님)
     if (
       error.response?.status !== 401 ||
       originalRequest?._retry ||
-      originalRequest?.url?.includes("/api/auth/refresh")
+      originalRequest?.url?.includes("/api/auth/refresh") ||
+      originalRequest?.url?.includes("/api/auth/login")
     ) {
       // 401·취소 요청 외 에러는 Sonner Toast로 자동 표시
       const status = error.response?.status;
