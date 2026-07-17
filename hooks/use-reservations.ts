@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/axios";
+import { useAuth } from "@/hooks/use-auth";
 import type { Reservation, CreateReservationDto, UpdateReservationDto } from "@/types/reservation";
 
 const QUERY_KEY = ["reservations"] as const;
@@ -13,9 +14,10 @@ type AllReservationsParams = {
 };
 
 export function useAllReservations(params?: AllReservationsParams) {
+  const { isInitialized } = useAuth();
   return useQuery<Reservation[]>({
     queryKey: [...QUERY_KEY, params],
-    enabled: !!params?.startDate && !!params?.endDate,
+    enabled: isInitialized && !!params?.startDate && !!params?.endDate,
     queryFn: async () => {
       const searchParams = new URLSearchParams({
         startDate: params!.startDate!,
@@ -29,8 +31,10 @@ export function useAllReservations(params?: AllReservationsParams) {
 }
 
 export function useMyReservations() {
+  const { isInitialized } = useAuth();
   return useQuery<Reservation[]>({
     queryKey: [...QUERY_KEY, "my"],
+    enabled: isInitialized,
     queryFn: async () => {
       const { data } = await apiClient.get<Reservation[]>("/api/reservations/my");
       return data;
@@ -39,13 +43,14 @@ export function useMyReservations() {
 }
 
 export function useReservation(id: number) {
+  const { isInitialized } = useAuth();
   return useQuery<Reservation>({
     queryKey: [...QUERY_KEY, id],
     queryFn: async () => {
       const { data } = await apiClient.get<Reservation>(`/api/reservations/${id}`);
       return data;
     },
-    enabled: !!id,
+    enabled: isInitialized && !!id,
   });
 }
 
