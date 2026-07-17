@@ -26,25 +26,39 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// ─── Response Interceptor (Silent Refresh) ──────────────────────────────────
+// ─── Silent Refresh ──────────────────────────────────────────────────────────
 // 401 응답 시 Refresh Token(httpOnly 쿠키)으로 Access Token 재발급 후 원래 요청 재시도.
-// 동시 다발 401: 갱신 완료까지 큐에 적재 후 일괄 재시도.
+// 백엔드가 Refresh Token을 1회용으로 로테이션하므로, 호출자가 여러 명이어도
+// 실제 네트워크 요청은 항상 하나만 나가야 한다(동시 refresh 시 토큰 경합으로
+// 뒤늦게 도착한 쪽이 "무효한 Refresh Token"으로 거부됨). 이 함수가 유일한
+// refresh 경로이며, AuthProvider의 세션 복원도 반드시 이 함수를 통해야 한다.
+let refreshPromise: Promise<string> | null = null;
 
-type QueueItem = {
-  resolve: (token: string) => void;
-  reject: (err: unknown) => void;
-};
-
-let isRefreshing = false;
-let pendingQueue: QueueItem[] = [];
-
-const drainQueue = (error: unknown, token: string | null) => {
-  pendingQueue.forEach(({ resolve, reject }) => {
-    if (error) reject(error);
-    else resolve(token!);
-  });
-  pendingQueue = [];
-};
+export function refreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post<ApiResponse<AuthResponse>>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`,
+        {},
+        { withCredentials: true }
+      )
+      .then(({ data }) => {
+        const { accessToken, userInfo } = data.data;
+        useAuthStore.getState().setAuth(accessToken, userInfo);
+        setAccessTokenCookie(accessToken);
+        return accessToken;
+      })
+      .catch((err) => {
+        useAuthStore.getState().clearAuth();
+        clearAccessTokenCookie();
+        throw err;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
 
 interface RetryableConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -82,46 +96,18 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 이미 갱신 중이면 완료까지 큐에서 대기
-    if (isRefreshing) {
-      return new Promise<string>((resolve, reject) => {
-        pendingQueue.push({ resolve, reject });
-      })
-        .then((token) => {
-          originalRequest!.headers["Authorization"] = `Bearer ${token}`;
-          return apiClient(originalRequest!);
-        })
-        .catch((err) => Promise.reject(err));
-    }
-
     originalRequest!._retry = true;
-    isRefreshing = true;
 
     try {
-      // Refresh Token은 httpOnly 쿠키로 자동 전송됨 (withCredentials: true)
-      const { data } = await axios.post<ApiResponse<AuthResponse>>(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`,
-        {},
-        { withCredentials: true }
-      );
-
-      const { accessToken, userInfo } = data.data;
-      useAuthStore.getState().setAuth(accessToken, userInfo);
-      setAccessTokenCookie(accessToken);
-      drainQueue(null, accessToken);
-
+      // 진행 중인 refresh가 있으면 그 Promise를 공유해서 대기(중복 refresh 방지)
+      const accessToken = await refreshAccessToken();
       originalRequest!.headers["Authorization"] = `Bearer ${accessToken}`;
       return apiClient(originalRequest!);
     } catch (refreshError) {
-      drainQueue(refreshError, null);
-      useAuthStore.getState().clearAuth();
-      clearAccessTokenCookie();
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }
       return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
     }
   }
 );

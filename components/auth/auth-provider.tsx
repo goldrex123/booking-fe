@@ -2,11 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import axios from "axios";
 import { useAuthStore } from "@/store/auth.store";
-import { setAccessTokenCookie, clearAccessTokenCookie } from "@/lib/cookies";
-import type { AuthResponse } from "@/types/auth";
-import type { ApiResponse } from "@/types/api";
+import { refreshAccessToken } from "@/lib/axios";
 
 // 로그아웃 시 서버가 refreshToken 쿠키를 만료시키므로, 로그아웃 직후
 // /login으로 이동한 시점에는 쿠키가 이미 없다. 이 페이지들에서는 세션
@@ -14,7 +11,7 @@ import type { ApiResponse } from "@/types/api";
 const SKIP_RESTORE_PATHS = ["/login", "/signup"];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setAuth, clearAuth, setInitialized } = useAuthStore();
+  const { setInitialized } = useAuthStore();
   const hasFetched = useRef(false);
   const pathname = usePathname();
 
@@ -28,25 +25,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const restore = async () => {
-      try {
-        // Refresh Token 쿠키를 이용해 새 Access Token 발급 (앱 초기화 시 한 번 실행)
-        const { data } = await axios.post<ApiResponse<AuthResponse>>(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-        setAuth(data.data.accessToken, data.data.userInfo);
-        setAccessTokenCookie(data.data.accessToken);
-      } catch {
-        clearAccessTokenCookie();
-        clearAuth();
-      } finally {
-        setInitialized();
-      }
-    };
-
-    restore();
+    // Refresh Token 쿠키를 이용해 새 Access Token 발급 (앱 초기화 시 한 번 실행).
+    // apiClient의 401 silent-refresh와 동일한 refreshAccessToken()을 공유해야
+    // 동시 refresh로 인한 Refresh Token 로테이션 경합을 피할 수 있다.
+    refreshAccessToken()
+      .catch(() => {})
+      .finally(() => setInitialized());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
