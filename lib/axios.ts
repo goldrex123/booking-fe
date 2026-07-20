@@ -8,8 +8,10 @@ import { setAccessTokenCookie, clearAccessTokenCookie } from "@/lib/cookies";
 import type { AuthResponse } from "@/types/auth";
 import type { ApiResponse } from "@/types/api";
 
+// baseURL을 지정하지 않아 항상 현재 origin(same-origin)으로 요청한다.
+// proxy.ts가 /api/* 요청을 백엔드로 프록시하므로, 백엔드 도메인을 직접
+// 알 필요가 없고 Refresh Token 쿠키도 first-party로 유지된다.
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -37,11 +39,7 @@ let refreshPromise: Promise<string> | null = null;
 export function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
     refreshPromise = axios
-      .post<ApiResponse<AuthResponse>>(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`,
-        {},
-        { withCredentials: true }
-      )
+      .post<ApiResponse<AuthResponse>>("/api/auth/refresh", {}, { withCredentials: true })
       .then(({ data }) => {
         const { accessToken, userInfo } = data.data;
         useAuthStore.getState().setAuth(accessToken, userInfo);

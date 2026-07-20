@@ -10,7 +10,8 @@ import {
 import type { Vehicle } from "@/types/vehicle";
 import type { AncillaryRoom } from "@/types/room";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+// apiClient가 상대경로(same-origin)로 요청하므로 목 핸들러도 상대경로로 매칭한다.
+const BASE = "";
 
 // ── 인메모리 상태 ─────────────────────────────────────────────────────────────
 // 목 서버 역할: 브라우저 세션 동안만 유지되며, 새로고침 시 초기화됩니다.
