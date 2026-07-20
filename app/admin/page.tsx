@@ -14,16 +14,25 @@ import { Input } from "@/components/ui/input";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { toLocalDateTimeString } from "@/lib/date";
 import { useAllReservations, useCancelReservation } from "@/hooks/use-reservations";
 import type { Reservation, ResourceType } from "@/types/reservation";
 import Link from "next/link";
 
-// GET /api/reservations는 startDate/endDate가 필수 파라미터이므로
-// 관리자 대시보드는 넉넉한 기본 범위(작년 1월 1일 ~ 내년 12월 31일)로 전체 예약을 조회한다.
-const now = new Date();
-const DEFAULT_START = toLocalDateTimeString(new Date(now.getFullYear() - 1, 0, 1));
-const DEFAULT_END = toLocalDateTimeString(new Date(now.getFullYear() + 1, 11, 31, 23, 59, 59));
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function toDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// 조회 기간의 기본값: 이번 달 1일 ~ 말일
+function getThisMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { start: toDateInputValue(start), end: toDateInputValue(end) };
+}
 
 function formatDateRange(startAt: string, endAt: string) {
   const start = new Date(startAt);
@@ -47,22 +56,35 @@ function formatDateRange(startAt: string, endAt: string) {
 
 export default function AdminPage() {
   const [resourceTypeFilter, setResourceTypeFilter] = useState<ResourceType | "ALL">("ALL");
-  const [dateFilter, setDateFilter] = useState("");
+  const [startDateInput, setStartDateInput] = useState(() => getThisMonthRange().start);
+  const [endDateInput, setEndDateInput] = useState(() => getThisMonthRange().end);
   const [cancelTarget, setCancelTarget] = useState<Reservation | null>(null);
 
+  const handleStartDateChange = (value: string) => {
+    setStartDateInput(value);
+    if (value > endDateInput) setEndDateInput(value);
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEndDateInput(value);
+    if (value < startDateInput) setStartDateInput(value);
+  };
+
+  const handleResetDateRange = () => {
+    const { start, end } = getThisMonthRange();
+    setStartDateInput(start);
+    setEndDateInput(end);
+  };
+
   const params = {
-    startDate: DEFAULT_START,
-    endDate: DEFAULT_END,
+    startDate: `${startDateInput}T00:00:00`,
+    endDate: `${endDateInput}T23:59:59`,
     ...(resourceTypeFilter !== "ALL" ? { resourceType: resourceTypeFilter as ResourceType } : {}),
   };
   const { data: reservations = [], isLoading } = useAllReservations(params);
   const cancelReservation = useCancelReservation();
 
-  const filtered = reservations
-    .filter((r) => {
-      if (!dateFilter) return true;
-      return r.startAt.startsWith(dateFilter) || r.endAt.startsWith(dateFilter);
-    })
+  const sortedReservations = reservations
     .slice()
     .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
 
@@ -201,27 +223,32 @@ export default function AdminPage() {
           </Select>
           <Input
             type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="h-8 w-40 text-sm"
+            value={startDateInput}
+            onChange={(e) => handleStartDateChange(e.target.value)}
+            className="h-8 w-36 text-sm"
           />
-          {dateFilter && (
-            <button
-              onClick={() => setDateFilter("")}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              초기화
-            </button>
-          )}
+          <span className="text-xs text-muted-foreground">~</span>
+          <Input
+            type="date"
+            value={endDateInput}
+            onChange={(e) => handleEndDateChange(e.target.value)}
+            className="h-8 w-36 text-sm"
+          />
+          <button
+            onClick={handleResetDateRange}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            이번 달로 초기화
+          </button>
         </div>
         <span className="ml-auto text-xs text-muted-foreground">
-          {isLoading ? "로딩 중..." : `총 ${filtered.length}건`}
+          {isLoading ? "로딩 중..." : `총 ${sortedReservations.length}건`}
         </span>
       </div>
 
       <DataTable
         columns={columns}
-        data={filtered}
+        data={sortedReservations}
         isLoading={isLoading}
         emptyTitle="해당 조건의 예약이 없습니다"
         emptyIcon={<LayoutDashboard className="size-8" />}
