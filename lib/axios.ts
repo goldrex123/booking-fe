@@ -103,6 +103,10 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest!);
     } catch (refreshError) {
       if (typeof window !== "undefined") {
+        // Refresh Token이 만료되었거나(자연 만료), 다른 기기의 로그인으로
+        // 서버에서 무효화된 경우 모두 이 경로를 탄다. 원인을 특정할 수
+        // 없으므로 두 경우를 포괄하는 안내만 표시한다.
+        toast.error("세션이 만료되었습니다. 다시 로그인해주세요");
         window.location.href = "/login";
       }
       return Promise.reject(refreshError);
