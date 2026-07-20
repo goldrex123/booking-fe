@@ -43,7 +43,7 @@ function NavLink({ href, label, icon }: NavItem) {
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+        "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2 py-1.5 text-sm font-medium transition-colors sm:px-3",
         "hover:bg-primary/8 hover:text-primary",
         isActive ? "text-primary bg-primary/10" : "text-muted-foreground"
       )}
@@ -51,7 +51,7 @@ function NavLink({ href, label, icon }: NavItem) {
       <span className={cn(isActive ? "text-primary" : "text-muted-foreground/70")}>
         {icon}
       </span>
-      {label}
+      <span className="hidden sm:inline">{label}</span>
       {isActive && (
         <span className="ml-auto size-1.5 rounded-full bg-[var(--brand)]" />
       )}
@@ -70,21 +70,21 @@ export function Nav() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-screen-xl items-center gap-6 px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-screen-xl items-center gap-2 px-3 sm:gap-6 sm:px-6">
 
         {/* 브랜드 */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <div className="flex size-7 items-center justify-center rounded-md bg-primary">
             <Car className="size-4 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <span className="text-sm font-semibold tracking-tight text-foreground">예약관리</span>
+          <span className="hidden text-sm font-semibold tracking-tight text-foreground sm:inline">예약관리</span>
         </Link>
 
-        <Separator orientation="vertical" className="h-5" />
+        <Separator orientation="vertical" className="h-5 shrink-0" />
 
         {/* 네비게이션 메뉴 */}
         {isLoggedIn && (
-          <nav className="flex items-center gap-0.5">
+          <nav className="flex min-w-0 items-center gap-0.5">
             {navItems.map((item) => (
               <NavLink key={item.href} {...item} />
             ))}
