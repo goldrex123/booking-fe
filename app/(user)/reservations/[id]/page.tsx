@@ -27,6 +27,19 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDateRange(startIso: string, endIso: string) {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const isSameDay =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate();
+  if (isSameDay) {
+    return formatDate(startIso);
+  }
+  return `${formatDate(startIso)} ~ ${formatDate(endIso)}`;
+}
+
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", {
     year: "numeric",
@@ -149,7 +162,7 @@ export default function ReservationDetailPage() {
         <InfoRow
           icon={<Calendar className="size-3.5" />}
           label="이용 날짜"
-          value={formatDate(reservation.startAt)}
+          value={formatDateRange(reservation.startAt, reservation.endAt)}
         />
         <InfoRow
           icon={<Clock className="size-3.5" />}

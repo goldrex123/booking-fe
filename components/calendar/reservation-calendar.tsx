@@ -57,6 +57,16 @@ function formatTime(iso: string) {
   });
 }
 
+function isSameDay(startIso: string, endIso: string) {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  return (
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate()
+  );
+}
+
 export function ReservationCalendar({ reservations, onDatesChange }: Props) {
   const [selected, setSelected] = useState<Reservation | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
@@ -224,7 +234,10 @@ export function ReservationCalendar({ reservations, onDatesChange }: Props) {
                 <div>
                   <p>{formatDateTime(selected.startAt)}</p>
                   <p className="text-xs">
-                    ~ {formatTime(selected.endAt)}
+                    ~{" "}
+                    {isSameDay(selected.startAt, selected.endAt)
+                      ? formatTime(selected.endAt)
+                      : formatDateTime(selected.endAt)}
                   </p>
                 </div>
               </div>

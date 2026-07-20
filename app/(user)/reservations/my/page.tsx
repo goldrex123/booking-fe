@@ -10,15 +10,21 @@ import type { Reservation } from "@/types/reservation";
 function formatDateRange(startAt: string, endAt: string) {
   const start = new Date(startAt);
   const end = new Date(endAt);
-  const dateStr = start.toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  });
+  const dateOpts = { year: "numeric", month: "long", day: "numeric", weekday: "short" } as const;
+  const startDateStr = start.toLocaleDateString("ko-KR", dateOpts);
   const startTime = start.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
   const endTime = end.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-  return `${dateStr} ${startTime} ~ ${endTime}`;
+
+  const isSameDay =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate();
+  if (isSameDay) {
+    return `${startDateStr} ${startTime} ~ ${endTime}`;
+  }
+
+  const endDateStr = end.toLocaleDateString("ko-KR", dateOpts);
+  return `${startDateStr} ${startTime} ~ ${endDateStr} ${endTime}`;
 }
 
 function StatusBadge({ status }: { status: Reservation["status"] }) {
