@@ -28,14 +28,21 @@ const DEFAULT_END = toLocalDateTimeString(new Date(now.getFullYear() + 1, 11, 31
 function formatDateRange(startAt: string, endAt: string) {
   const start = new Date(startAt);
   const end = new Date(endAt);
-  const date = start.toLocaleDateString("ko-KR", {
-    month: "short",
-    day: "numeric",
-    weekday: "short",
-  });
+  const dateOpts = { month: "short", day: "numeric", weekday: "short" } as const;
+  const startDate = start.toLocaleDateString("ko-KR", dateOpts);
   const startT = start.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
   const endT = end.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-  return `${date} ${startT}–${endT}`;
+
+  const isSameDay =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate();
+  if (isSameDay) {
+    return `${startDate} ${startT}–${endT}`;
+  }
+
+  const endDate = end.toLocaleDateString("ko-KR", dateOpts);
+  return `${startDate} ${startT} – ${endDate} ${endT}`;
 }
 
 export default function AdminPage() {
